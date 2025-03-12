@@ -1,5 +1,5 @@
 {
-  "name": "mcp-server-uithub",
+  "name": "uithub-mcp",
   "version": "0.1.0",
   "description": "MCP server for interacting with UIThub API",
   "license": "MIT",
