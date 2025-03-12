@@ -12,7 +12,7 @@
     "README.md"
   ],
   "bin": {
-    "mcp-server-uithub": "dist/index.js"
+    "uithub-mcp": "dist/index.js"
   },
   "scripts": {
     "build": "tsup src/index.ts --dts --format esm",
