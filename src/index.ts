@@ -5,24 +5,24 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
+  Tool,
 } from "@modelcontextprotocol/sdk/types.js";
-import { Tool } from "@modelcontextprotocol/sdk/types.js";
 import { fetch } from "undici";
 
-import { exec } from "child_process";
+import { exec as execCallback } from "child_process";
 import { promisify } from "util";
 import chalk from "chalk";
-import os from "node:os";
-import path from "node:path";
-import fs from "node:fs";
+import * as os from "node:os";
+import * as path from "node:path";
+import * as fs from "node:fs";
 import { fileURLToPath } from "url";
-import which from "which";
 
 dotenv.config();
 
-const GITHUB_PAT = "";
+const GITHUB_PAT = process.env.GITHUB_PAT || "";
 const __filename = fileURLToPath(import.meta.url);
-const execAsync = promisify(exec);
+const __dirname = path.dirname(__filename);
+const execAsync = promisify(execCallback);
 const version = process.env.npm_package_version || "0.1.0";
 
 /**
@@ -42,6 +42,26 @@ function isDirectory(dirPath: string) {
     return fs.statSync(dirPath).isDirectory();
   } catch (error) {
     return false;
+  }
+}
+
+/**
+ * Find the node executable path
+ */
+async function findNodePath(): Promise<string> {
+  try {
+    // Try using the current process executable
+    return process.execPath;
+  } catch (error) {
+    // Fallback to trying to run 'which node' or 'where node' depending on platform
+    try {
+      const cmd = process.platform === "win32" ? "where" : "which";
+      const { stdout } = await execAsync(`${cmd} node`);
+      return stdout.toString().trim().split("\n")[0];
+    } catch (err) {
+      // Last resort fallback
+      return "node"; // Just use the command name and hope it's in PATH
+    }
   }
 }
 
@@ -68,8 +88,9 @@ export async function init() {
     "claude_desktop_config.json",
   );
 
+  const nodePath = await findNodePath();
   const cloudflareConfig = {
-    command: (await which("node")).trim(),
+    command: nodePath,
     args: [__filename, "run"],
   };
 
@@ -116,18 +137,6 @@ export async function init() {
   }
 }
 
-// This section runs when this file is directly executed
-if (process.argv[2] === "init") {
-  init()
-    .then(() => {
-      console.log(chalk.green("Initialization complete!"));
-    })
-    .catch((error) => {
-      console.error(chalk.red("Error during initialization:"), error);
-      process.exit(1);
-    });
-}
-
 // Load environment variables
 dotenv.config();
 
@@ -139,9 +148,6 @@ function log(...args: any[]) {
     process.stderr.write(msg);
   }
 }
-
-// Configuration
-const config = {};
 
 // Define the UIThub getRepositoryContents tool
 const GET_REPOSITORY_CONTENTS_TOOL: Tool = {
@@ -357,6 +363,7 @@ process.on("unhandledRejection", (error) => {
   log("Unhandled rejection:", error);
 });
 
+// This section runs when this file is directly executed
 // Handle command line arguments
 const [cmd, ...args] = process.argv.slice(2);
 if (cmd === "init") {
