@@ -113,7 +113,7 @@ function log(...args) {
 // Define the UIThub getRepositoryContents tool
 const GET_REPOSITORY_CONTENTS_TOOL = {
     name: "getRepositoryContents",
-    description: "Get repository contents from GitHub via UIThub API",
+    description: "Get repository contents from GitHub. Unless otherwise instructed, ensure to always first get the tree only (omitFiles:true) to get an idea of the file structure. Afterwards, use the different filters to get only the context relevant to cater to the user request.",
     inputSchema: {
         type: "object",
         properties: {
