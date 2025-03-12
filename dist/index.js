@@ -64,7 +64,7 @@ const GET_REPOSITORY_CONTENTS_TOOL = {
             },
             maxTokens: {
                 type: "integer",
-                description: "Limit the response to a maximum number of tokens",
+                description: "Limit the response to a maximum number of tokens (defaults to 50000)",
             },
             omitFiles: {
                 type: "boolean",
@@ -73,11 +73,6 @@ const GET_REPOSITORY_CONTENTS_TOOL = {
             omitTree: {
                 type: "boolean",
                 description: "If true, response will not include the directory tree",
-            },
-            format: {
-                type: "string",
-                description: "Response format (json, yaml, markdown, html)",
-                enum: ["json", "yaml", "markdown", "html"],
             },
         },
         required: ["owner", "repo"],
@@ -88,7 +83,7 @@ const ALL_TOOLS = [GET_REPOSITORY_CONTENTS_TOOL];
 // Tool handlers
 const HANDLERS = {
     getRepositoryContents: async (request) => {
-        const { owner, repo, branch = "main", path = "", ext, dir, excludeExt, excludeDir, maxFileSize, maxTokens, omitFiles, omitTree, format = "json", } = request.params.arguments;
+        const { owner, repo, branch = "main", path = "", ext, dir, excludeExt, excludeDir, maxFileSize, maxTokens = 50000, omitFiles, omitTree, } = request.params.arguments;
         log("Executing getRepositoryContents for repo:", `${owner}/${repo}`);
         // Build URLSearchParams
         const params = new URLSearchParams();
@@ -102,25 +97,13 @@ const HANDLERS = {
             params.append("exclude-dir", excludeDir);
         if (maxFileSize)
             params.append("maxFileSize", maxFileSize.toString());
-        if (maxTokens)
-            params.append("maxTokens", maxTokens.toString());
+        params.append("maxTokens", maxTokens.toString());
         if (omitFiles)
             params.append("omitFiles", "true");
         if (omitTree)
             params.append("omitTree", "true");
-        // Set the appropriate Accept header based on the format
-        let acceptHeader = "application/json";
-        switch (format) {
-            case "yaml":
-                acceptHeader = "text/yaml";
-                break;
-            case "markdown":
-                acceptHeader = "text/markdown";
-                break;
-            case "html":
-                acceptHeader = "text/html";
-                break;
-        }
+        // Always use markdown format
+        const acceptHeader = "text/markdown";
         // Prepare headers
         const headers = {
             Accept: acceptHeader,
@@ -139,21 +122,13 @@ const HANDLERS = {
                 const error = await response.text();
                 throw new Error(`UIThub API error: ${error}`);
             }
-            // Handle different response formats
-            let responseData;
-            if (format === "json" || format === "yaml") {
-                responseData = await response.json();
-            }
-            else {
-                responseData = await response.text();
-            }
+            // Get markdown response
+            const responseText = await response.text();
             return {
                 content: [
                     {
                         type: "text",
-                        text: typeof responseData === "string"
-                            ? responseData
-                            : JSON.stringify(responseData, null, 2),
+                        text: responseText,
                     },
                 ],
                 metadata: {},

@@ -72,7 +72,8 @@ const GET_REPOSITORY_CONTENTS_TOOL: Tool = {
       },
       maxTokens: {
         type: "integer",
-        description: "Limit the response to a maximum number of tokens",
+        description:
+          "Limit the response to a maximum number of tokens (defaults to 50000)",
       },
       omitFiles: {
         type: "boolean",
@@ -81,11 +82,6 @@ const GET_REPOSITORY_CONTENTS_TOOL: Tool = {
       omitTree: {
         type: "boolean",
         description: "If true, response will not include the directory tree",
-      },
-      format: {
-        type: "string",
-        description: "Response format (json, yaml, markdown, html)",
-        enum: ["json", "yaml", "markdown", "html"],
       },
     },
     required: ["owner", "repo"],
@@ -108,10 +104,9 @@ const HANDLERS: Record<string, Function> = {
       excludeExt,
       excludeDir,
       maxFileSize,
-      maxTokens,
+      maxTokens = 50000,
       omitFiles,
       omitTree,
-      format = "json",
     } = request.params.arguments;
 
     log("Executing getRepositoryContents for repo:", `${owner}/${repo}`);
@@ -123,23 +118,12 @@ const HANDLERS: Record<string, Function> = {
     if (excludeExt) params.append("exclude-ext", excludeExt);
     if (excludeDir) params.append("exclude-dir", excludeDir);
     if (maxFileSize) params.append("maxFileSize", maxFileSize.toString());
-    if (maxTokens) params.append("maxTokens", maxTokens.toString());
+    params.append("maxTokens", maxTokens.toString());
     if (omitFiles) params.append("omitFiles", "true");
     if (omitTree) params.append("omitTree", "true");
 
-    // Set the appropriate Accept header based on the format
-    let acceptHeader = "application/json";
-    switch (format) {
-      case "yaml":
-        acceptHeader = "text/yaml";
-        break;
-      case "markdown":
-        acceptHeader = "text/markdown";
-        break;
-      case "html":
-        acceptHeader = "text/html";
-        break;
-    }
+    // Always use markdown format
+    const acceptHeader = "text/markdown";
 
     // Prepare headers
     const headers: Record<string, string> = {
@@ -165,22 +149,14 @@ const HANDLERS: Record<string, Function> = {
         throw new Error(`UIThub API error: ${error}`);
       }
 
-      // Handle different response formats
-      let responseData;
-      if (format === "json" || format === "yaml") {
-        responseData = await response.json();
-      } else {
-        responseData = await response.text();
-      }
+      // Get markdown response
+      const responseText = await response.text();
 
       return {
         content: [
           {
             type: "text",
-            text:
-              typeof responseData === "string"
-                ? responseData
-                : JSON.stringify(responseData, null, 2),
+            text: responseText,
           },
         ],
         metadata: {},
