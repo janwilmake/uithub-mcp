@@ -22,7 +22,3 @@ This MCP server allows Claude to retrieve and analyze code from GitHub repositor
 
 1. `npx uithub-mcp init`
 2. restart claude
-
-## License
-
-MIT

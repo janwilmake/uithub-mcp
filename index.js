@@ -5,10 +5,8 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
-  Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 import { fetch } from "undici";
-
 import { exec as execCallback } from "child_process";
 import { promisify } from "util";
 import chalk from "chalk";
@@ -17,27 +15,23 @@ import * as path from "node:path";
 import * as fs from "node:fs";
 import { fileURLToPath } from "url";
 
+// Configuration
 dotenv.config();
-
 const GITHUB_PAT = process.env.GITHUB_PAT || "";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const execAsync = promisify(execCallback);
 const version = process.env.npm_package_version || "0.1.0";
+const debug = process.env.DEBUG === "true";
 
-/**
- * Creates a simple dialog box with a border
- */
-function createDialog(lines: string[]) {
+// Utility functions
+function createDialog(lines) {
   const maxLineWidth = Math.max(...lines.map((line) => line.length), 60);
   const border = chalk.gray("-".repeat(maxLineWidth));
   return [border, ...lines, border, ""].join("\n");
 }
 
-/**
- * Check if a directory exists
- */
-function isDirectory(dirPath: string) {
+function isDirectory(dirPath) {
   try {
     return fs.statSync(dirPath).isDirectory();
   } catch (error) {
@@ -45,112 +39,29 @@ function isDirectory(dirPath: string) {
   }
 }
 
-/**
- * Find the node executable path
- */
-async function findNodePath(): Promise<string> {
-  try {
-    // Try using the current process executable
-    return process.execPath;
-  } catch (error) {
-    // Fallback to trying to run 'which node' or 'where node' depending on platform
-    try {
-      const cmd = process.platform === "win32" ? "where" : "which";
-      const { stdout } = await execAsync(`${cmd} node`);
-      return stdout.toString().trim().split("\n")[0];
-    } catch (err) {
-      // Last resort fallback
-      return "node"; // Just use the command name and hope it's in PATH
-    }
-  }
-}
-
-/**
- * Initialize the UIThub MCP server
- */
-export async function init() {
-  console.log(
-    createDialog([
-      `👋 Welcome to ${chalk.yellow("mcp-server-uithub")} v${version}!`,
-      `💁‍♀️ This ${chalk.green("'init'")} process will install the UIThub MCP Server into Claude Desktop`,
-      `   enabling Claude to fetch and analyze GitHub repositories through UIThub.`,
-      `🧡 Let's get started.`,
-    ]),
-  );
-
-  console.log(`${chalk.yellow("Step 1:")} Checking for Claude Desktop...`);
-
-  const claudeConfigPath = path.join(
-    os.homedir(),
-    "Library",
-    "Application Support",
-    "Claude",
-    "claude_desktop_config.json",
-  );
-
-  const nodePath = await findNodePath();
-  const cloudflareConfig = {
-    command: nodePath,
-    args: [__filename, "run"],
-  };
-
-  console.log(
-    `Looking for existing config in: ${chalk.yellow(path.dirname(claudeConfigPath))}`,
-  );
-  const configDirExists = isDirectory(path.dirname(claudeConfigPath));
-
-  if (configDirExists) {
-    const existingConfig = fs.existsSync(claudeConfigPath)
-      ? JSON.parse(fs.readFileSync(claudeConfigPath, "utf8"))
-      : { mcpServers: {} };
-
-    if ("uithub" in (existingConfig?.mcpServers || {})) {
-      console.log(
-        `${chalk.green("Note:")} Replacing existing UIThub MCP config:\n${chalk.gray(JSON.stringify(existingConfig.mcpServers.uithub))}`,
-      );
-    }
-
-    const newConfig = {
-      ...existingConfig,
-      mcpServers: {
-        ...existingConfig.mcpServers,
-        uithub: cloudflareConfig,
-      },
-    };
-
-    fs.writeFileSync(claudeConfigPath, JSON.stringify(newConfig, null, 2));
-
-    console.log(
-      `${chalk.yellow("mcp-server-uithub")} configured & added to Claude Desktop!`,
-    );
-    console.log(`Wrote config to ${chalk.yellow(claudeConfigPath)}`);
-    console.log(
-      chalk.blue(
-        `Try asking Claude to "fetch code from a GitHub repository" to get started!`,
-      ),
-    );
-  } else {
-    const fullConfig = { mcpServers: { uithub: cloudflareConfig } };
-    console.log(
-      `Couldn't detect Claude Desktop config at ${claudeConfigPath}.\nTo add the UIThub MCP server manually, add the following config to your ${chalk.yellow("claude_desktop_configs.json")} file:\n\n${JSON.stringify(fullConfig, null, 2)}`,
-    );
-  }
-}
-
-// Load environment variables
-dotenv.config();
-
-// Debug logging
-const debug = process.env.DEBUG === "true";
-function log(...args: any[]) {
+function log(...args) {
   if (debug) {
     const msg = `[DEBUG ${new Date().toISOString()}] ${args.join(" ")}\n`;
     process.stderr.write(msg);
   }
 }
 
+async function findNodePath() {
+  try {
+    return process.execPath;
+  } catch (error) {
+    try {
+      const cmd = process.platform === "win32" ? "where" : "which";
+      const { stdout } = await execAsync(`${cmd} node`);
+      return stdout.toString().trim().split("\n")[0];
+    } catch (err) {
+      return "node"; // Fallback
+    }
+  }
+}
+
 // Define the UIThub getRepositoryContents tool
-const GET_REPOSITORY_CONTENTS_TOOL: Tool = {
+const GET_REPOSITORY_CONTENTS_TOOL = {
   name: "getRepositoryContents",
   description:
     "Get repository contents from GitHub. Unless otherwise instructed, ensure to always first get the tree only (omitFiles:true) to get an idea of the file structure. Afterwards, use the different filters to get only the context relevant to cater to the user request.",
@@ -215,8 +126,8 @@ const GET_REPOSITORY_CONTENTS_TOOL: Tool = {
 const ALL_TOOLS = [GET_REPOSITORY_CONTENTS_TOOL];
 
 // Tool handlers
-const HANDLERS: Record<string, Function> = {
-  getRepositoryContents: async (request: any) => {
+const HANDLERS = {
+  getRepositoryContents: async (request) => {
     const {
       owner,
       repo,
@@ -247,11 +158,7 @@ const HANDLERS: Record<string, Function> = {
 
     // Always use markdown format
     const acceptHeader = "text/markdown";
-
-    // Prepare headers
-    const headers: Record<string, string> = {
-      Accept: acceptHeader,
-    };
+    const headers = { Accept: acceptHeader };
 
     // Add GitHub API key if available
     if (GITHUB_PAT) {
@@ -261,27 +168,17 @@ const HANDLERS: Record<string, Function> = {
     // Construct the URL
     const pathSegment = path ? `/${path}` : "";
     const url = `https://uithub.com/${owner}/${repo}/tree/${branch}${pathSegment}?${params.toString()}`;
-
     log("UIThub API request URL:", url);
 
     try {
       const response = await fetch(url, { headers });
-
       if (!response.ok) {
         const error = await response.text();
         throw new Error(`UIThub API error: ${error}`);
       }
-
-      // Get markdown response
       const responseText = await response.text();
-
       return {
-        content: [
-          {
-            type: "text",
-            text: responseText,
-          },
-        ],
+        content: [{ type: "text", text: responseText }],
         metadata: {},
       };
     } catch (error) {
@@ -290,7 +187,9 @@ const HANDLERS: Record<string, Function> = {
         content: [
           {
             type: "text",
-            text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+            text: `Error: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
           },
         ],
         metadata: {},
@@ -299,6 +198,88 @@ const HANDLERS: Record<string, Function> = {
     }
   },
 };
+
+// Initialize the UIThub MCP server
+export async function init() {
+  console.log(
+    createDialog([
+      `👋 Welcome to ${chalk.yellow("mcp-server-uithub")} v${version}!`,
+      `💁‍♀️ This ${chalk.green(
+        "'init'",
+      )} process will install the UIThub MCP Server into Claude Desktop`,
+      `   enabling Claude to fetch and analyze GitHub repositories through UIThub.`,
+      `🧡 Let's get started.`,
+    ]),
+  );
+
+  console.log(`${chalk.yellow("Step 1:")} Checking for Claude Desktop...`);
+
+  const claudeConfigPath = path.join(
+    os.homedir(),
+    "Library",
+    "Application Support",
+    "Claude",
+    "claude_desktop_config.json",
+  );
+
+  const nodePath = await findNodePath();
+  const cloudflareConfig = {
+    command: nodePath,
+    args: [__filename, "run"],
+  };
+
+  console.log(
+    `Looking for existing config in: ${chalk.yellow(
+      path.dirname(claudeConfigPath),
+    )}`,
+  );
+  const configDirExists = isDirectory(path.dirname(claudeConfigPath));
+
+  if (configDirExists) {
+    const existingConfig = fs.existsSync(claudeConfigPath)
+      ? JSON.parse(fs.readFileSync(claudeConfigPath, "utf8"))
+      : { mcpServers: {} };
+
+    if ("uithub" in (existingConfig?.mcpServers || {})) {
+      console.log(
+        `${chalk.green(
+          "Note:",
+        )} Replacing existing UIThub MCP config:\n${chalk.gray(
+          JSON.stringify(existingConfig.mcpServers.uithub),
+        )}`,
+      );
+    }
+
+    const newConfig = {
+      ...existingConfig,
+      mcpServers: {
+        ...existingConfig.mcpServers,
+        uithub: cloudflareConfig,
+      },
+    };
+
+    fs.writeFileSync(claudeConfigPath, JSON.stringify(newConfig, null, 2));
+
+    console.log(
+      `${chalk.yellow(
+        "mcp-server-uithub",
+      )} configured & added to Claude Desktop!`,
+    );
+    console.log(`Wrote config to ${chalk.yellow(claudeConfigPath)}`);
+    console.log(
+      chalk.blue(
+        `Try asking Claude to "fetch code from a GitHub repository" to get started!`,
+      ),
+    );
+  } else {
+    const fullConfig = { mcpServers: { uithub: cloudflareConfig } };
+    console.log(
+      `Couldn't detect Claude Desktop config at ${claudeConfigPath}.\nTo add the UIThub MCP server manually, add the following config to your ${chalk.yellow(
+        "claude_desktop_configs.json",
+      )} file:\n\n${JSON.stringify(fullConfig, null, 2)}`,
+    );
+  }
+}
 
 // Start the MCP server
 async function main() {
@@ -326,7 +307,6 @@ async function main() {
         if (!handler) {
           throw new Error(`Unknown tool: ${toolName}`);
         }
-
         return await handler(request);
       } catch (error) {
         log("Error handling tool call:", error);
@@ -335,7 +315,9 @@ async function main() {
             content: [
               {
                 type: "text",
-                text: `Error: ${error instanceof Error ? error.message : String(error)}`,
+                text: `Error: ${
+                  error instanceof Error ? error.message : String(error)
+                }`,
               },
             ],
             isError: true,
@@ -364,9 +346,9 @@ process.on("unhandledRejection", (error) => {
   log("Unhandled rejection:", error);
 });
 
-// This section runs when this file is directly executed
-// Handle command line arguments
+// Command line handling
 const [cmd, ...args] = process.argv.slice(2);
+console.log({ cmd, args });
 if (cmd === "init") {
   init()
     .then(() => {
