@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/janwilmake-uithub-mcp-badge.png)](https://mseep.ai/app/janwilmake-uithub-mcp)
+
 # UIThub MCP Server
 
 [![smithery badge](https://smithery.ai/badge/@janwilmake/uithub-mcp)](https://smithery.ai/server/@janwilmake/uithub-mcp)
