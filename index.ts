@@ -84,19 +84,6 @@ async function handleMCPRequest(
   env: Env,
   ctx: AuthenticatedContext
 ): Promise<Response> {
-  // Handle CORS preflight
-  if (request.method === "OPTIONS") {
-    return new Response(null, {
-      status: 204,
-      headers: {
-        "Access-Control-Allow-Origin": "*",
-        "Access-Control-Allow-Methods": "POST, OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept",
-        "Access-Control-Max-Age": "86400",
-      },
-    });
-  }
-
   // Require authentication
   if (!ctx.authenticated) {
     return new Response(
@@ -301,6 +288,18 @@ async function handler(
 ): Promise<Response> {
   const url = new URL(request.url);
 
+  // Handle CORS preflight
+  if (request.method === "OPTIONS") {
+    return new Response(null, {
+      status: 204,
+      headers: {
+        "Access-Control-Allow-Origin": "*",
+        "Access-Control-Allow-Methods": "POST, OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type, Authorization, Accept",
+        "Access-Control-Max-Age": "86400",
+      },
+    });
+  }
   // Handle MCP endpoint
   if (url.pathname === "/mcp") {
     return handleMCPRequest(request, env, ctx);
@@ -317,7 +316,7 @@ async function handler(
       `<!DOCTYPE html>
       <html>
       <head>
-        <title>UIThub Remote MCP Server</title>
+        <title>uithub Remote MCP Server</title>
         <style>
           body { font-family: system-ui, sans-serif; max-width: 800px; margin: 2rem auto; padding: 0 1rem; }
           pre { background: #f5f5f5; padding: 1rem; border-radius: 4px; overflow-x: auto; }
@@ -325,7 +324,7 @@ async function handler(
         </style>
       </head>
       <body>
-        <h1>UIThub Remote MCP Server</h1>
+        <h1>uithub Remote MCP Server</h1>
         
         ${
           ctx.authenticated
@@ -341,15 +340,8 @@ async function handler(
         
         <p>This is a remote MCP server that provides access to GitHub repositories through UIThub API.</p>
         
-        <h2>Usage</h2>
-        <p>Connect your MCP client to:</p>
-        <pre>${url.origin}/mcp</pre>
-        
-        <p>Available tools:</p>
-        <ul>
-          <li><strong>getRepositoryContents</strong> - Get repository contents from GitHub with filtering options</li>
-        </ul>
-        
+        <p><a href="https://installthismcp.com/uithub?url=https%3A%2F%2Fmcp.uithub.com%2Fmcp" target="_blank"><img src="https://img.shields.io/badge/Install_MCP-uithub-black?style=for-the-badge"></a></p>
+
         <h2>Authentication</h2>
         <p>This server requires GitHub authentication. Your GitHub access token will be used to make requests to the UIThub API, allowing access to private repositories if you have permission.</p>
         
