@@ -359,7 +359,7 @@ async function handler(
 // Export the handler wrapped with SimplerAuth
 export default {
   fetch: withSimplerAuth(handler, {
-    isLoginRequired: false, // We handle auth manually for MCP endpoint
+    isLoginRequired: false,
     oauthProviderHost: "gh.simplerauth.com",
     scope: "repo read:user",
   }),
