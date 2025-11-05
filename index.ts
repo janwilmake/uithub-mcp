@@ -218,9 +218,9 @@ async function handleGetRepositoryContents(
     if (omitTree) params.append("omitTree", "true");
 
     // Use the GitHub access token for UIThub API
-    if (accessToken) {
-      params.append("apiKey", accessToken);
-    }
+    // if (accessToken) {
+    //   params.append("apiKey", accessToken);
+    // }
 
     // Construct the UIThub API URL
     const pathSegment = path ? `/${path}` : "";

@@ -1,4 +1,4 @@
-# Uithub MCP Server
+# UITHUB MCP Server
 
 Model Context Protocol (MCP) server for interacting with [uithub](https://uithub.com), which provides a convenient way to fetch GitHub repository contents.
 
@@ -14,6 +14,6 @@ Features
 
 [![Install Uithub MCP](https://img.shields.io/badge/Install_MCP-Uithub%20MCP-1e3a8a?style=for-the-badge)](https://installthismcp.com/Uithub%20MCP?url=https%3A%2F%2Fmcp.uithub.com%2Fmcp)
 
-## Known limitations
+## Known limitations / TODO
 
 - does not work properly with cursor, vscode and maybe others. Need to fix `Invalid redirect_uri: must be on same origin as client_id` bug
